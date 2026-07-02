@@ -1,0 +1,9 @@
+**/.DS_Store
+**/.idea
+**/.vs
+**/.vscode
+**/bin
+**/obj
+.git
+.gitignore
+Dockerfile
