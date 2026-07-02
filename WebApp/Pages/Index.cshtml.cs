@@ -93,8 +93,9 @@ public class IndexModel(ILogger<IndexModel> logger, IHttpClientFactory httpClien
             return;
         }
 
-        var json = await MyPredictionsClient.GetAsync(httpClientFactory, round.Value, credentials);
-        OutputResult = FormatJson(json);
+        var result = await MyPredictionsClient.GetAsync(httpClientFactory, round.Value, credentials);
+        ExistingPredictionsResult = FormatJson(result.ExistingPredictionsJson);
+        OutputResult = FormatJson(result.OutputJson);
     }
 
     private static readonly JsonSerializerOptions FormatOptions = new()

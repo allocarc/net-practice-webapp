@@ -12,9 +12,13 @@ public static class MyPredictionsClient
         PropertyNameCaseInsensitive = true,
     };
 
-    public static async Task<string> GetAsync(IHttpClientFactory httpClientFactory, int round, CredentialsModel credentials)
+    public static async Task<MyPredictionsWorkflowResult> GetAsync(
+        IHttpClientFactory httpClientFactory,
+        int round,
+        CredentialsModel credentials)
     {
         var client = httpClientFactory.CreateClient();
+        var existingPredictions = new JsonObject();
         var nullEmails = new JsonArray();
 
         foreach (var item in credentials.Items)
@@ -30,16 +34,28 @@ public static class MyPredictionsClient
             if (result is null)
             {
                 nullEmails.Add(item.Email);
+                continue;
             }
+
+            existingPredictions[item.Email] = result;
         }
+
+        var existingPredictionsJson = existingPredictions.Count == 0
+            ? JsonSerializer.Serialize(new
+            {
+                message = "沒有取得已有預測內容的 credential。",
+            })
+            : JsonSerializer.Serialize(existingPredictions);
 
         var output = new JsonObject
         {
             ["nullEmails"] = nullEmails,
         };
 
-        return JsonSerializer.Serialize(output);
+        return new MyPredictionsWorkflowResult(existingPredictionsJson, JsonSerializer.Serialize(output));
     }
+
+    public sealed record MyPredictionsWorkflowResult(string ExistingPredictionsJson, string OutputJson);
 
     private static void AddHeaderIfConfigured(HttpRequestMessage request, string name, string? value)
     {
