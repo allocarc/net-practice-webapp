@@ -2,33 +2,71 @@
 @model IndexModel
 @{
     ViewData["Title"] = "Predict";
+    ViewData["MainContainerClass"] = "predict-main-container";
 }
 
 <section class="predict-page">
     <h1>Predict</h1>
-    <label for="payload">
-        輸入
-        <textarea id="payload" spellcheck="false">{"value":42,"text":"hello"}</textarea>
-    </label>
-    <button id="predictButton" type="button">預測</button>
-    <label for="result">
-        輸出結果
-        <textarea id="result" readonly></textarea>
-    </label>
+    <div class="predict-layout">
+        <div class="predict-inputs">
+            <form class="ajax-form" method="post" asp-page-handler="SubmitPrediction">
+                <label for="credentialInput">
+                    Credential
+                    <textarea id="credentialInput" name="CredentialInput" spellcheck="false">@Model.CredentialInput</textarea>
+                </label>
+                <label for="predictionInput">
+                    預測內容
+                    <textarea id="predictionInput" name="PredictionInput" spellcheck="false">@Model.PredictionInput</textarea>
+                </label>
+                <div class="predict-actions">
+                    <button type="submit" asp-page-handler="SubmitPrediction">送出預測</button>
+                    <button type="submit" asp-page-handler="GetMyPredictions">取得我的預測</button>
+                </div>
+            </form>
+        </div>
+        <label class="predict-existing" for="existingPredictions">
+            原本送出的預測內容
+            <textarea id="existingPredictions" readonly>@Model.ExistingPredictionsResult</textarea>
+        </label>
+        <label class="predict-output" for="result">
+            輸出結果
+            <textarea id="result" readonly>@Model.OutputResult</textarea>
+        </label>
+    </div>
 </section>
 
 <style>
     .predict-page {
-        width: min(720px, 100%);
+        width: 100%;
         display: grid;
         gap: 16px;
         margin: 32px auto;
+        padding: 0 clamp(20px, 3vw, 48px);
+    }
+
+    .predict-main-container {
+        width: 100%;
+        max-width: none;
+        padding-right: 0;
+        padding-left: 0;
     }
 
     .predict-page h1 {
         margin: 0;
         font-size: 28px;
         font-weight: 700;
+    }
+
+    .predict-layout {
+        display: grid;
+        grid-template-columns: minmax(420px, 1.2fr) minmax(320px, 1fr) minmax(320px, 1fr);
+        gap: 24px;
+        align-items: start;
+    }
+
+    .predict-inputs {
+        display: grid;
+        gap: 16px;
     }
 
     .predict-page label {
@@ -72,34 +110,61 @@
         opacity: 0.72;
     }
 
+    .predict-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+    }
+
+    #existingPredictions,
     #result {
+        min-height: 520px;
         background: #eef2f7;
+    }
+
+    @@media (max-width: 800px) {
+        .predict-layout {
+            grid-template-columns: 1fr;
+        }
+
+        #existingPredictions,
+        #result {
+            min-height: 260px;
+        }
     }
 </style>
 
 <script>
-    const payload = document.querySelector("#payload");
+    const existingPredictions = document.querySelector("#existingPredictions");
     const result = document.querySelector("#result");
-    const predictButton = document.querySelector("#predictButton");
 
-    predictButton.addEventListener("click", async () => {
-        predictButton.disabled = true;
-        result.value = "";
+    document.querySelectorAll(".ajax-form").forEach((form) => {
+        form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const button = event.submitter instanceof HTMLButtonElement
+                ? event.submitter
+                : form.querySelector("button");
+            const action = event.submitter?.hasAttribute("formaction")
+                ? event.submitter.formAction
+                : form.action;
+            button.disabled = true;
 
-        try {
-            const parsedPayload = JSON.parse(payload.value);
-            const response = await fetch("/Predict", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify(parsedPayload)
-            });
-            const responseText = await response.text();
-            const responseBody = responseText ? JSON.parse(responseText) : null;
-            result.value = JSON.stringify(responseBody, null, 2);
-        } catch (error) {
-            result.value = error instanceof Error ? error.message : String(error);
-        } finally {
-            predictButton.disabled = false;
-        }
+            try {
+                const response = await fetch(action, {
+                    method: "POST",
+                    body: new FormData(form)
+                });
+                const html = await response.text();
+                const parsedHtml = new DOMParser().parseFromString(html, "text/html");
+                const newExistingPredictions = parsedHtml.querySelector("#existingPredictions");
+                const newResult = parsedHtml.querySelector("#result");
+                existingPredictions.value = newExistingPredictions ? newExistingPredictions.value : "";
+                result.value = newResult ? newResult.value : html;
+            } catch (error) {
+                result.value = error instanceof Error ? error.message : String(error);
+            } finally {
+                button.disabled = false;
+            }
+        });
     });
 </script>

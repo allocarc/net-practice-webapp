@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddHttpsRedirection(options =>
 {
@@ -107,7 +105,7 @@ static IResult Home()
                 <h1>Predict</h1>
                 <label for="payload">
                     輸入
-                    <textarea id="payload" spellcheck="false">{"value":42,"text":"hello"}</textarea>
+                    <textarea id="payload" spellcheck="false">{"str":42}</textarea>
                 </label>
                 <button id="predictButton" type="button">預測</button>
                 <label for="result">
@@ -148,16 +146,16 @@ static IResult Home()
     return Results.Content(html, "text/html; charset=utf-8");
 }
 
-static IResult Predict(JsonElement request)
+static IResult Predict(Dictionary<string, double>? model)
 {
-    if (request.ValueKind != JsonValueKind.Object)
+    if (model is null)
     {
-        return Results.BadRequest(new { Message = "Request body must be a JSON object." });
+        return Results.BadRequest(new { Message = "Request body must be a JSON object like { \"str\": 123 }." });
     }
 
     return Results.Ok(new
     {
         Message = "Prediction request received.",
-        Input = request,
+        Model = model,
     });
 }

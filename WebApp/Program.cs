@@ -1,5 +1,3 @@
-using System.Text.Json;
-
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT");
@@ -10,6 +8,7 @@ if (!string.IsNullOrWhiteSpace(port))
 
 // Add services to the container.
 builder.Services.AddRazorPages();
+builder.Services.AddHttpClient();
 
 var app = builder.Build();
 
@@ -36,16 +35,16 @@ app.MapRazorPages();
 
 app.Run();
 
-static IResult Predict(JsonElement request)
+static IResult Predict(Dictionary<string, double>? model)
 {
-    if (request.ValueKind != JsonValueKind.Object)
+    if (model is null)
     {
-        return Results.BadRequest(new { Message = "Request body must be a JSON object." });
+        return Results.BadRequest(new { Message = "Request body must be a JSON object like { \"str\": 123 }." });
     }
 
     return Results.Ok(new
     {
         Message = "Prediction request received.",
-        Input = request,
+        Model = model,
     });
 }
