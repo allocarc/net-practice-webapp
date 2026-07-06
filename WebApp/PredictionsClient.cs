@@ -98,9 +98,6 @@ public static class PredictionsClient
         HttpRequestMessage request,
         CancellationToken cancellationToken)
     {
-        var delaySeconds = Random.Shared.Next(MinSubmitDelaySeconds, MaxSubmitDelaySeconds + 1);
-        await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
-
         return await client.SendAsync(request, cancellationToken);
     }
 
