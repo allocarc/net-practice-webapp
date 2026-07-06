@@ -8,6 +8,8 @@ public static class PredictionsClient
 {
     private const string MyPredictionsUrl = "https://babg2026fifa.ddns.net/api/my-predictions";
     private const string PredictionsUrl = "https://babg2026fifa.ddns.net/api/predictions";
+    private const int MinSubmitDelaySeconds = 10;
+    private const int MaxSubmitDelaySeconds = 65;
 
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
@@ -17,7 +19,8 @@ public static class PredictionsClient
     public static async Task<PredictionSubmissionWorkflowResult> SubmitAsync(
         IHttpClientFactory httpClientFactory,
         PredictionSubmissionModel model,
-        CredentialsModel credentials)
+        CredentialsModel credentials,
+        CancellationToken cancellationToken = default)
     {
         var client = httpClientFactory.CreateClient();
         var results = new List<PredictionSubmitResult>();
@@ -25,7 +28,7 @@ public static class PredictionsClient
 
         foreach (var item in credentials.Items)
         {
-            var myPredictions = await GetMyPredictionsAsync(client, item, model.Round);
+            var myPredictions = await GetMyPredictionsAsync(client, item, model.Round, cancellationToken);
             if (myPredictions is null)
             {
                 continue;
@@ -37,12 +40,12 @@ public static class PredictionsClient
             AddHeaderIfConfigured(request, "X-User-Email", item.Email);
             AddHeaderIfConfigured(request, "X-User-Passcode", item.Code);
             request.Content = new StringContent(
-                JsonSerializer.Serialize(new { round = model.Round, picks = model.PredictionPicks }),
+                JsonSerializer.Serialize(new { round = model.Round, picks = CreatePredictionPicks(model) }),
                 Encoding.UTF8,
                 "application/json");
 
-            var response = await client.SendAsync(request);
-            var responseBody = await response.Content.ReadAsStringAsync();
+            var response = await SendSubmitWithRandomDelayAsync(client, request, cancellationToken);
+            var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             results.Add(new PredictionSubmitResult(item.Email, ParseResponseBody(responseBody)));
         }
 
@@ -68,15 +71,38 @@ public static class PredictionsClient
 
     public sealed record PredictionSubmissionWorkflowResult(string ExistingPredictionsJson, string SubmissionResultsJson);
 
-    private static async Task<JsonNode?> GetMyPredictionsAsync(HttpClient client, CredentialItem item, int round)
+    private static string[] CreatePredictionPicks(PredictionSubmissionModel model)
+    {
+        return model.PredictionPicks
+            .OrderBy(_ => Random.Shared.Next())
+            .Take(PredictionSubmissionModel.RandomPickCount)
+            .ToArray();
+    }
+
+    private static async Task<JsonNode?> GetMyPredictionsAsync(
+        HttpClient client,
+        CredentialItem item,
+        int round,
+        CancellationToken cancellationToken)
     {
         using var request = new HttpRequestMessage(HttpMethod.Get, $"{MyPredictionsUrl}?round={round}");
         AddHeaderIfConfigured(request, "X-User-Email", item.Email);
         AddHeaderIfConfigured(request, "X-User-Passcode", item.Code);
 
-        var response = await client.SendAsync(request);
-        var responseBody = await response.Content.ReadAsStringAsync();
+        var response = await client.SendAsync(request, cancellationToken);
+        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
         return ParseMyPredictionsResponseBody(responseBody);
+    }
+
+    private static async Task<HttpResponseMessage> SendSubmitWithRandomDelayAsync(
+        HttpClient client,
+        HttpRequestMessage request,
+        CancellationToken cancellationToken)
+    {
+        var delaySeconds = Random.Shared.Next(MinSubmitDelaySeconds, MaxSubmitDelaySeconds + 1);
+        await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+
+        return await client.SendAsync(request, cancellationToken);
     }
 
     private static void AddHeaderIfConfigured(HttpRequestMessage request, string name, string? value)

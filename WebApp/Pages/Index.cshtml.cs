@@ -74,7 +74,7 @@ public class IndexModel(ILogger<IndexModel> logger, IHttpClientFactory httpClien
             return;
         }
 
-        var result = await PredictionsClient.SubmitAsync(httpClientFactory, model, credentials);
+        var result = await PredictionsClient.SubmitAsync(httpClientFactory, model, credentials, HttpContext.RequestAborted);
         ExistingPredictionsResult = FormatJson(result.ExistingPredictionsJson);
         OutputResult = FormatJson(result.SubmissionResultsJson);
     }
@@ -122,6 +122,12 @@ public class IndexModel(ILogger<IndexModel> logger, IHttpClientFactory httpClien
             var model = JsonSerializer.Deserialize<PredictionSubmissionModel>(PredictionInput, PredictionInputOptions);
             if (model is not null)
             {
+                if (model.PredictionPicks.Length < PredictionSubmissionModel.RandomPickCount)
+                {
+                    OutputResult = $"Prediction input must include at least {PredictionSubmissionModel.RandomPickCount} teams.";
+                    return null;
+                }
+
                 return model;
             }
 
