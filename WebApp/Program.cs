@@ -1,3 +1,5 @@
+using WebApp;
+
 var builder = WebApplication.CreateBuilder(args);
 
 var port = Environment.GetEnvironmentVariable("PORT");
@@ -9,6 +11,8 @@ if (!string.IsNullOrWhiteSpace(port))
 // Add services to the container.
 builder.Services.AddRazorPages();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<BackgroundPredictionSubmissionService>();
+builder.Services.AddHostedService(provider => provider.GetRequiredService<BackgroundPredictionSubmissionService>());
 
 var app = builder.Build();
 

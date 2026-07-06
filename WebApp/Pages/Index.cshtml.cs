@@ -5,7 +5,10 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 
 namespace WebApp.Pages;
 
-public class IndexModel(ILogger<IndexModel> logger, IHttpClientFactory httpClientFactory) : PageModel
+public class IndexModel(
+    ILogger<IndexModel> logger,
+    IHttpClientFactory httpClientFactory,
+    BackgroundPredictionSubmissionService predictionSubmissionService) : PageModel
 {
     private const string DefaultCredentialInput = """
         {
@@ -74,9 +77,14 @@ public class IndexModel(ILogger<IndexModel> logger, IHttpClientFactory httpClien
             return;
         }
 
-        var result = await PredictionsClient.SubmitAsync(httpClientFactory, model, credentials, HttpContext.RequestAborted);
-        ExistingPredictionsResult = FormatJson(result.ExistingPredictionsJson);
-        OutputResult = FormatJson(result.SubmissionResultsJson);
+        var jobId = await predictionSubmissionService.QueueAsync(model, credentials);
+        OutputResult = FormatJson(JsonSerializer.Serialize(new
+        {
+            message = "已排入背景執行，前端不會等待全部送出完成。",
+            jobId,
+            round = model.Round,
+            credentialCount = credentials.Items.Length,
+        }));
     }
 
     public async Task OnPostGetMyPredictionsAsync()
