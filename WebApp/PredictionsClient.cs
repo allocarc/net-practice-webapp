@@ -8,8 +8,8 @@ public static class PredictionsClient
 {
     private const string MyPredictionsUrl = "https://babg2026fifa.ddns.net/api/my-predictions";
     private const string PredictionsUrl = "https://babg2026fifa.ddns.net/api/predictions";
-    private const int MinSubmitDelaySeconds = 60;
-    private const int MaxSubmitDelaySeconds = 180;
+    private const int MinSubmitDelaySeconds = 10;
+    private const int MaxSubmitDelaySeconds = 30;
 
     private static readonly JsonSerializerOptions DeserializeOptions = new()
     {
